@@ -3803,7 +3803,7 @@ struct LEX : public Query_tables_list {
   // SQL 审核时，检查是否有主键
   bool m_check_sql_has_primary;
   // SQL 审核时，必须拥有的字段
-  std::unordered_map<char*, bool> m_need_columns_map;
+  std::unordered_map<std::string, bool> m_need_columns_map;
   // SQL 审核时，记录所有字段的类型
   std::unordered_map<std::string, enum_field_types> m_sql_check_columns_type;
   // SQL 审核时，DML 是否有 where

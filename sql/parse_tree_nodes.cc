@@ -1225,7 +1225,8 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
       if (!sql_check_dml_allow_select && has_query_block())
         check_sql_dml_not_allowed_select(thd);
     }
-    if (sql_check_insert_need_column && thd->thread_id() > 1 && !column_list) {
+    // 如果 insert 要求指定字段
+    if (sql_check_insert_need_column && thd->thread_id() > 1 && column_list->value.size() == 0) {
       check_sql_dml_need_column(thd);
     }
   }
@@ -2344,7 +2345,8 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
     thd->lex->m_need_columns_map.clear();
     // 初始化"记录字段类型"的 map
     thd->lex->m_sql_check_columns_type.clear();
-    char* token = strtok(sql_check_need_columns_list, ",");
+    char* tokens = strdup(sql_check_need_columns_list);
+    char* token = strtok(tokens, ",");
     while (token != NULL) {
         thd->lex->m_need_columns_map[token] = false;
         token = strtok(NULL, ",");
