@@ -95,6 +95,7 @@
 #include "strings/sql_chars.h"
 #include "thr_lock.h"  // thr_lock_type
 #include "violite.h"   // SSL_type
+#include <unordered_map>   // sql 审核中，必须拥有的字段，需要放到 hashmap 中 处理
 
 class Alter_info;
 class Event_parse_data;
@@ -3670,6 +3671,22 @@ class LEX_GRANT_AS {
   List<LEX_USER> *role_list;
 };
 
+/*
+  SQL 审核时，返回给客户端的字段
+*/
+struct m_tmp_check_sql_result {
+  //数据库名
+  const char* database_name;
+  //表名
+  const char* table_name;
+  //字段名
+  const char* column;
+  //不符合规范的信息
+  const std::string error;
+  //原始 SQL 相关信息
+  const char* sql_info;
+};
+
 /**
   The LEX object currently serves three different purposes:
 
@@ -3776,6 +3793,26 @@ struct LEX : public Query_tables_list {
   LEX_STRING alter_user_comment_text;
   LEX_GRANT_AS grant_as;
   THD *thd;
+
+  // m_check_sql_on 为 ture 时表示 THD 正在进行 SQL 审核，为 false 时表示 按官方流程执行
+  bool m_check_sql_on;
+  // SQL 审核时，把所有的不符合规范信息存储在 m_tmp_check_sql_results 数组
+  Mem_root_array<const m_tmp_check_sql_result *> *m_tmp_check_sql_results = nullptr;
+  // SQL 审核时，索引个数的统计
+  int m_check_sql_index_count;
+  // SQL 审核时，检查是否有主键
+  bool m_check_sql_has_primary;
+  // SQL 审核时，必须拥有的字段
+  std::unordered_map<char*, bool> m_need_columns_map;
+  // SQL 审核时，记录所有字段的类型
+  std::unordered_map<std::string, enum_field_types> m_sql_check_columns_type;
+  // SQL 审核时，DML 是否有 where
+  //bool m_check_sql_has_where;
+  // SQL 审核时，DML 是否有 order
+  //bool m_check_sql_has_where;
+  // SQL 审核时，DML 是否有 select
+  //bool m_check_sql_has_where;
+
 
   /* Optimizer hints */
   Opt_hints_global *opt_hints_global;
@@ -4199,6 +4236,10 @@ struct LEX : public Query_tables_list {
     all_query_blocks_list = nullptr;
     m_current_query_block = nullptr;
     destroy_values_map();
+
+    //遇到 SQLCOM_CREATE_TABLE 类型的 SQL，需要删除之前 new 的 m_tmp_check_sql_result，避免内存泄露
+    if (sql_command == SQLCOM_CREATE_TABLE && thd->thread_id() > 1 && m_check_sql_on)
+      m_tmp_check_sql_results->clear();
   }
 
   /// Reset query context to initial state

@@ -408,6 +408,31 @@ extern ulong opt_keyring_migration_port;
 
 extern ulonglong global_conn_mem_limit;
 extern ulonglong global_conn_mem_counter;
+
+// 声明 SQL 审核的全局变量
+extern bool sql_check;
+extern bool sql_check_has_primary;
+extern bool sql_check_need_primary;
+extern bool sql_check_column_need_comment;
+extern bool sql_check_allow_keyword;
+extern bool sql_check_need_primary_number;
+extern bool sql_check_allow_unsigned;
+extern bool sql_check_insert_need_column;
+extern bool sql_check_allow_null;
+extern bool sql_check_allow_drop_table;
+extern int32 sql_check_max_columns_per_index;
+extern bool sql_check_dml_need_where;
+extern bool sql_check_column_need_default_value;
+extern bool sql_check_allow_drop_database;
+extern int32 sql_check_max_indexs_per_table;
+extern bool sql_check_dml_allow_order;
+extern int32 sql_check_char_max_length;
+extern bool sql_check_dml_allow_select;
+extern int32 sql_check_table_name_length;
+extern char* sql_check_need_columns_list;
+extern char* sql_check_allowed_keywords;
+
+
 /**
   Variable to check if connection related options are set
   as part of keyring migration.

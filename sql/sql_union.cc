@@ -96,6 +96,7 @@
 #include "sql/visible_fields.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"
+#include "sql/check_sql_send.h"
 
 using std::vector;
 
@@ -1694,6 +1695,10 @@ bool Query_expression::ExecuteIteratorQuery(THD *thd) {
 
   if (query_result->start_execution(thd)) return true;
 
+  // 如果正在进行 SQL 审核，则修改返回元数据的逻辑
+  if (thd->thread_id() > 1 && sql_check && thd->lex->m_check_sql_on) {
+    check_sql_send_field_metadata(thd);
+  } else
   if (query_result->send_result_set_metadata(
           thd, *fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     return true;
@@ -1773,26 +1778,31 @@ bool Query_expression::ExecuteIteratorQuery(THD *thd) {
 
     PFSBatchMode pfs_batch_mode(m_root_iterator.get());
 
-    for (;;) {
-      int error = m_root_iterator->Read();
-      DBUG_EXECUTE_IF("bug13822652_1", thd->killed = THD::KILL_QUERY;);
+    // 如果正在进行 SQL 审核，则修改返回数据的内容
+    if (thd->thread_id() > 1 && sql_check && thd->lex->m_check_sql_on) {
+      check_sql_send_data(thd);
+    }else{
+      for (;;) {
+        int error = m_root_iterator->Read();
+        DBUG_EXECUTE_IF("bug13822652_1", thd->killed = THD::KILL_QUERY;);
 
-      if (error > 0 || thd->is_error())  // Fatal error
-        return true;
-      else if (error < 0)
-        break;
-      else if (thd->killed)  // Aborted by user
-      {
-        thd->send_kill_message();
-        return true;
+        if (error > 0 || thd->is_error())  // Fatal error
+          return true;
+        else if (error < 0)
+          break;
+        else if (thd->killed)  // Aborted by user
+        {
+          thd->send_kill_message();
+          return true;
+        }
+
+        ++*send_records_ptr;
+
+        if (query_result->send_data(thd, *fields)) {
+          return true;
+        }
+        thd->get_stmt_da()->inc_current_row_for_condition();
       }
-
-      ++*send_records_ptr;
-
-      if (query_result->send_data(thd, *fields)) {
-        return true;
-      }
-      thd->get_stmt_da()->inc_current_row_for_condition();
     }
 
     // NOTE: join_cleanup must be done before we send EOF, so that we get the

@@ -100,6 +100,7 @@
 #include "string_with_len.h"
 #include "strxmov.h"
 #include "template_utils.h"
+#include "check_sql.h"
 
 static constexpr const size_t MAX_SYS_VAR_LENGTH{32};
 
@@ -957,6 +958,21 @@ Sql_cmd *PT_delete::make_cmd(THD *thd) {
 
   if (opt_hints != nullptr && opt_hints->contextualize(&pc)) return nullptr;
 
+  if (sql_check) {
+    thd->lex->m_tmp_check_sql_results = new (thd->mem_root) Mem_root_array<const m_tmp_check_sql_result *>(thd->mem_root);
+    // 如果 DML 需要 where 
+    if (sql_check && sql_check_dml_need_where && thd->thread_id() > 1) {
+      if (sql_check_dml_need_where && opt_where_clause == nullptr)
+        check_sql_dml_has_no_where(thd);
+    }
+
+    // 如果 DML 不允许 order 
+    if (sql_check && !sql_check_dml_allow_order && thd->thread_id() > 1) {
+      if (!sql_check_dml_allow_order && opt_order_clause != nullptr)
+        check_sql_dml_not_allowed_order(thd);
+    }
+  }
+
   return new (thd->mem_root) Sql_cmd_delete(is_multitable(), &delete_tables);
 }
 
@@ -1011,6 +1027,21 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   }
 
   if (opt_hints != nullptr && opt_hints->contextualize(&pc)) return nullptr;
+  
+  if (sql_check) {
+    thd->lex->m_tmp_check_sql_results = new (thd->mem_root) Mem_root_array<const m_tmp_check_sql_result *>(thd->mem_root);
+    // 如果 DML 需要 where 
+    if (sql_check && sql_check_dml_need_where && thd->thread_id() > 1) {
+      if (sql_check_dml_need_where && opt_where_clause == nullptr)
+        check_sql_dml_has_no_where(thd);
+    }
+
+    // 如果 DML 不允许 order 
+    if (sql_check && !sql_check_dml_allow_order && thd->thread_id() > 1) {
+      if (!sql_check_dml_allow_order && opt_order_clause != nullptr)
+        check_sql_dml_not_allowed_order(thd);
+    }
+  }
 
   return new (thd->mem_root) Sql_cmd_update(is_multitable, &value_list->value);
 }
@@ -1187,6 +1218,18 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
     sql_cmd->update_value_list = opt_on_duplicate_value_list->value;
   }
 
+  if (sql_check) {
+    thd->lex->m_tmp_check_sql_results = new (thd->mem_root) Mem_root_array<const m_tmp_check_sql_result *>(thd->mem_root);
+    // 如果 DML 不允许 select 
+    if (sql_check && !sql_check_dml_allow_select && thd->thread_id() > 1) {
+      if (!sql_check_dml_allow_select && has_query_block())
+        check_sql_dml_not_allowed_select(thd);
+    }
+    if (sql_check_insert_need_column && thd->thread_id() > 1 && !column_list) {
+      check_sql_dml_need_column(thd);
+    }
+  }
+  
   return sql_cmd;
 }
 
@@ -2287,6 +2330,26 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
 
   lex->sql_command = SQLCOM_CREATE_TABLE;
+  // SQLCOM_CREATE_TABLE 类型的 SQL，如果是用户线程，且开启 SQL 审核总开关，则开启会话级别的 SQL 审核
+  if (thd->thread_id() > 1 && sql_check) {
+    thd->lex->m_check_sql_on = true;
+    //初始化 thd->lex->m_tmp_check_sql_results
+    thd->lex->m_tmp_check_sql_results = new (thd->mem_root) Mem_root_array<const m_tmp_check_sql_result *>(thd->mem_root);
+    
+    // SQL 审核时，索引个数的统计
+    thd->lex->m_check_sql_index_count = 0;
+    // SQL 审核时，检查是否有主键，初始化为没有，后面检查到有主键时，则设置为 true
+    thd->lex->m_check_sql_has_primary = false;
+    // 初始化必须拥有的字段
+    thd->lex->m_need_columns_map.clear();
+    // 初始化"记录字段类型"的 map
+    thd->lex->m_sql_check_columns_type.clear();
+    char* token = strtok(sql_check_need_columns_list, ",");
+    while (token != NULL) {
+        thd->lex->m_need_columns_map[token] = false;
+        token = strtok(NULL, ",");
+    }
+  }
 
   Parse_context pc(thd, lex->current_query_block());
 
@@ -2312,6 +2375,8 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
   Table_ref *qe_tables = nullptr;
 
   if (opt_like_clause != nullptr) {
+    // 暂时不审核 create table ... like ... 这类型的 SQL
+    thd->lex->m_check_sql_on = false;
     pc2.create_info->options |= HA_LEX_CREATE_TABLE_LIKE;
     Table_ref **like_clause_table = &lex->query_tables->next_global;
     Table_ref *src_table = pc.select->add_table_to_list(
@@ -2324,6 +2389,15 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
     if (opt_table_element_list) {
       for (auto element : *opt_table_element_list) {
         if (element->contextualize(&pc2)) return nullptr;
+        // 如果时非系统线程(用户线程的意思)，且开启 SQL 审核的话，则进入 check_sql(...) 函数，对字段的属性进行 SQL 审核
+        if (thd->thread_id() > 1 && sql_check && thd->lex->m_check_sql_on) {
+          check_sql(thd, element, table->db, table->table_name);
+        }
+      }
+      //对表的属性进行 SQL 审核
+      if (thd->thread_id() > 1 && sql_check && thd->lex->m_check_sql_on)
+      {
+        check_sql_extern(thd, table->db, table->table_name);
       }
     }
 

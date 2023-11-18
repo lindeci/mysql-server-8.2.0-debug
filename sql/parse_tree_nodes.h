@@ -2449,6 +2449,12 @@ class PT_inline_index_definition : public PT_table_constraint_def {
 
   bool do_contextualize(Table_ddl_parse_context *pc) override;
 
+  // 因为索引的字段个数、索引名字、索引类型都是 private，所以需要添加 public 的 get 方法
+  int32 get_columns_count() { return m_columns->elements; }
+  const LEX_STRING get_index_name() { return m_name; }
+  keytype get_keytype() { return m_keytype; }
+  List<PT_key_part_specification>* get_m_columns() { return m_columns;}
+
  private:
   keytype m_keytype;
   const LEX_STRING m_name;
@@ -2991,6 +2997,10 @@ class PT_column_def : public PT_table_element {
         opt_place(opt_place) {}
 
   bool do_contextualize(Table_ddl_parse_context *pc) override;
+
+  // 因为 field_def，field_ident 都是 private，所以需要添加 public 的 get
+  PT_field_def_base* get_field_def() { return field_def;}
+  const LEX_STRING get_field_ident() { return field_ident;}
 };
 
 /**

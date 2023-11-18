@@ -59,6 +59,7 @@
 #include "sql/table.h"             // table
 #include "sql/thd_raii.h"          // Prepared_stmt_arena_holder
 #include "thr_lock.h"
+#include "sql/check_sql_send.h"
 
 #ifndef NDEBUG
 #include "sql/current_thd.h"
@@ -441,6 +442,8 @@ bool Sql_cmd_create_table::execute(THD *thd) {
                                     &create_info);
     } else {
       /* Regular CREATE TABLE */
+      // 如果是非用户线程，或者非 SQL 审核状态，则进入正常流程
+      if (thd->thread_id() <= 1 || !sql_check || !thd->lex->m_check_sql_on)
       res = mysql_create_table(thd, create_table, &create_info, &alter_info);
     }
     /* Pop Strict_error_handler */
@@ -453,6 +456,12 @@ bool Sql_cmd_create_table::execute(THD *thd) {
               ->is_enabled())
         thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
             ->mark_as_changed(thd, {});
+      // 如果是 SQL 审核状态，则返回不规范的SQL信息
+      if (!(thd->thread_id() <= 1 || !sql_check || !thd->lex->m_check_sql_on)){
+        check_sql_send_field_metadata(thd);
+        check_sql_send_data(thd);
+        my_eof(thd);
+      }else
       my_ok(thd);
     }
   }

@@ -184,6 +184,7 @@
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "violite.h"
+#include "check_sql_send.h"
 
 #ifdef WITH_LOCK_ORDER
 #include "sql/debug_lock_order.h"
@@ -3757,26 +3758,53 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_LOAD: {
       assert(first_table == all_tables && first_table != nullptr);
       assert(lex->m_sql_cmd != nullptr);
-      res = lex->m_sql_cmd->execute(thd);
+      if (sql_check && thd->thread_id() > 1 && (lex->sql_command == SQLCOM_INSERT || lex->sql_command == SQLCOM_INSERT_SELECT ||
+                                                lex->sql_command == SQLCOM_DELETE || lex->sql_command == SQLCOM_DELETE_MULTI ||
+                                                lex->sql_command == SQLCOM_UPDATE || lex->sql_command == SQLCOM_UPDATE_MULTI)) {
+        if (!sql_check_dml_allow_select || !sql_check_dml_allow_order || sql_check_dml_need_where) {
+          check_sql_send_field_metadata(thd);
+          check_sql_send_data(thd);
+          my_eof(thd);
+        }
+
+      } else
+        res = lex->m_sql_cmd->execute(thd);
       break;
     }
     case SQLCOM_DROP_TABLE: {
       assert(first_table == all_tables && first_table != nullptr);
-      if (!lex->drop_temporary) {
-        if (check_table_access(thd, DROP_ACL, all_tables, false, UINT_MAX,
-                               false))
-          goto error; /* purecov: inspected */
-      }
-      /* DDL and binlog write order are protected by metadata locks. */
-      res = mysql_rm_table(thd, first_table, lex->drop_if_exists,
-                           lex->drop_temporary);
-      /* when dropping temporary tables if @@session_track_state_change is ON
-         then send the boolean tracker in the OK packet */
-      if (!res && lex->drop_temporary) {
-        if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-                ->is_enabled())
-          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-              ->mark_as_changed(thd, {});
+      // 如果不允许 drop 表
+      if (sql_check && !sql_check_allow_drop_table && thd->thread_id() > 1) {
+        const m_tmp_check_sql_result *error_info = new m_tmp_check_sql_result{
+            .database_name = first_table->db,
+            .table_name = first_table->table_name,
+            .column = "",
+            .error = "no allowed to drop table",
+            .sql_info = thd->query().str
+        };
+        //初始化 thd->lex->m_tmp_check_sql_results
+        thd->lex->m_tmp_check_sql_results = new (thd->mem_root) Mem_root_array<const m_tmp_check_sql_result *>(thd->mem_root);
+        thd->lex->m_tmp_check_sql_results->push_back(error_info);
+        check_sql_send_field_metadata(thd);
+        check_sql_send_data(thd);
+        my_eof(thd);
+      } else {   
+        if (!lex->drop_temporary) {
+          if (check_table_access(thd, DROP_ACL, all_tables, false, UINT_MAX,
+                                false))
+            goto error; /* purecov: inspected */
+        }
+        /* DDL and binlog write order are protected by metadata locks. */
+        res = mysql_rm_table(thd, first_table, lex->drop_if_exists,
+                            lex->drop_temporary);
+        /* when dropping temporary tables if @@session_track_state_change is ON
+          then send the boolean tracker in the OK packet */
+        if (!res && lex->drop_temporary) {
+          if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
+                  ->is_enabled())
+            thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
+                ->mark_as_changed(thd, {});
+        }
       }
     } break;
     case SQLCOM_CHANGE_DB: {
@@ -3946,13 +3974,30 @@ int mysql_execute_command(THD *thd, bool first_level) {
       break;
     }
     case SQLCOM_DROP_DB: {
-      if (check_and_convert_db_name(&lex->name, false) != Ident_name_check::OK)
+      // 如果不允许 drop database
+      if (sql_check && !sql_check_allow_drop_database && thd->thread_id() > 1) {
+        const m_tmp_check_sql_result *error_info = new m_tmp_check_sql_result{
+            .database_name = "",
+            .table_name = "",
+            .column = "",
+            .error = "not allowed to drop database",
+            .sql_info = thd->query().str
+        };
+        //初始化 thd->lex->m_tmp_check_sql_results
+        thd->lex->m_tmp_check_sql_results = new (thd->mem_root) Mem_root_array<const m_tmp_check_sql_result *>(thd->mem_root);
+        thd->lex->m_tmp_check_sql_results->push_back(error_info);
+        check_sql_send_field_metadata(thd);
+        check_sql_send_data(thd);
+        my_eof(thd);
+      } else {
+        if (check_and_convert_db_name(&lex->name, false) != Ident_name_check::OK)
+          break;
+        if (check_access(thd, DROP_ACL, lex->name.str, nullptr, nullptr, true,
+                        false))
+          break;
+        res = mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists);
+      }
         break;
-      if (check_access(thd, DROP_ACL, lex->name.str, nullptr, nullptr, true,
-                       false))
-        break;
-      res = mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists);
-      break;
     }
     case SQLCOM_ALTER_DB: {
       if (check_and_convert_db_name(&lex->name, false) != Ident_name_check::OK)

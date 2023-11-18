@@ -7746,3 +7746,141 @@ static Sys_var_charptr Sys_debug_set_operations_secondary_overflow_at(
     CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 #endif
+
+static Sys_var_bool Sys_sql_check(
+    "sql_check",
+    "SQL 审核全局开关",
+    GLOBAL_VAR(sql_check), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_need_primary(
+    "sql_check_need_primary",
+    "SQL 审核: 检查是否需要主键",
+    GLOBAL_VAR(sql_check_need_primary), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_column_need_comment(
+    "sql_check_column_need_comment",
+    "SQL 审核: 字段是否需要注释",
+    GLOBAL_VAR(sql_check_column_need_comment), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_allow_keyword(
+    "sql_check_allow_keyword",
+    "SQL 审核: 字段是否允许使用关键字",
+    GLOBAL_VAR(sql_check_allow_keyword), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_need_primary_number(
+    "sql_check_need_primary_number",
+    "SQL 审核: 是否要求主键是整型字段",
+    GLOBAL_VAR(sql_check_need_primary_number), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_allow_unsigned(
+    "sql_check_allow_unsigned",
+    "SQL 审核: 是否允许字段类型有 unsigned 属性",
+    GLOBAL_VAR(sql_check_allow_unsigned), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_insert_need_column(
+    "sql_check_insert_need_column",
+    "SQL 审核: insert 语句是否需要指定字段",
+    GLOBAL_VAR(sql_check_insert_need_column), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_allow_null(
+    "sql_check_allow_null",
+    "SQL 审核: 是否允许字段类型有 null 属性",
+    GLOBAL_VAR(sql_check_allow_null), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_allow_drop_table(
+    "sql_check_allow_drop_table",
+    "SQL 审核: 是否允许 drop 表",
+    GLOBAL_VAR(sql_check_allow_drop_table), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_int32 Sys_sql_check_max_columns_per_index(
+    "sql_check_max_columns_per_index",
+    "SQL 审核: 建表时每个索引包含字段的最大个数",
+    GLOBAL_VAR(sql_check_max_columns_per_index), CMD_LINE(OPT_ARG),
+    VALID_RANGE(1, 32), DEFAULT(6), BLOCK_SIZE(1));
+
+static Sys_var_bool Sys_sql_check_dml_need_where(
+    "sql_check_dml_need_where",
+    "SQL 审核: dml 语句是否需要 where 条件",
+    GLOBAL_VAR(sql_check_dml_need_where), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_column_need_default_value(
+    "sql_check_column_need_default_value",
+    "SQL 审核: 时间类型字段是否需要指定默认值",
+    GLOBAL_VAR(sql_check_column_need_default_value), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_check_allow_drop_database(
+    "sql_check_allow_drop_database",
+    "SQL 审核: 是否允许 drop database",
+    GLOBAL_VAR(sql_check_allow_drop_database), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_int32 Sys_sql_check_max_indexs_per_table(
+    "sql_check_max_indexs_per_table",
+    "SQL 审核: 创建表时，每张表允许最大的索引个数",
+    GLOBAL_VAR(sql_check_max_indexs_per_table), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 32), DEFAULT(8), BLOCK_SIZE(1));
+
+static Sys_var_bool Sys_sql_check_dml_allow_order(
+    "sql_check_dml_allow_order",
+    "SQL 审核: dml 语句是否允许 order",
+    GLOBAL_VAR(sql_check_dml_allow_order), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_int32 Sys_sql_check_char_max_length(
+    "sql_check_char_max_length",
+    "SQL 审核: char 类型字段允许的最大长度",
+    GLOBAL_VAR(sql_check_char_max_length), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 255), DEFAULT(255), BLOCK_SIZE(1));
+
+static Sys_var_bool Sys_sql_check_dml_allow_select(
+    "sql_check_dml_allow_select",
+    "SQL 审核: dml 语句是否允许 select",
+    GLOBAL_VAR(sql_check_dml_allow_select), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_int32 Sys_sql_check_table_name_length(
+    "sql_check_table_name_length",
+    "SQL 审核: 表名允许的最大长度",
+    GLOBAL_VAR(sql_check_table_name_length), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 255), DEFAULT(64), BLOCK_SIZE(1));
+
+static Sys_var_charptr Sys_sql_check_need_columns_list(
+    "sql_check_need_columns_list",
+    "SQL 审核: 建表时必须拥有的字段名列表，用逗号隔开",
+    GLOBAL_VAR(sql_check_need_columns_list), CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
+    DEFAULT(""),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr));
+
+static Sys_var_charptr Sys_sql_check_allowed_keywords(
+    "sql_check_allowed_keywords",
+    "SQL 审核: 建表检查字段时，不需要检查的关键字列表，用逗号隔开",
+    GLOBAL_VAR(sql_check_allowed_keywords), CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET,
+    DEFAULT(""),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr));

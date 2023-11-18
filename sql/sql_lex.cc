@@ -5034,6 +5034,9 @@ static void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
 bool LEX::make_sql_cmd(Parse_tree_root *parse_tree) {
   if (!will_contextualize) return false;
 
+  // 在线程描述的 lex 中，默认不开启会话级别的 SQL 审核。只针对部分类型的 SQL 在 make_cmd(thd) 打开会话级别的 SQL 审核
+  thd->lex->m_check_sql_on = false;
+
   m_sql_cmd = parse_tree->make_cmd(thd);
   if (m_sql_cmd == nullptr) return true;
 

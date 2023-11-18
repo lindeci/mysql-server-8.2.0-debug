@@ -3695,6 +3695,11 @@ class Item : public Parse_tree_node {
    A helper function to ensure proper usage of CAST(.. AS .. ARRAY)
   */
   virtual void allow_array_cast() {}
+
+  /**
+   检查 str_value 是否为空
+  */
+  bool is_str_value_empty() { return str_value.is_empty(); }
 };
 
 /**

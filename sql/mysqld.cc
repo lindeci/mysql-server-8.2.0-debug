@@ -1436,6 +1436,30 @@ bool opt_keyring_operations = true;
 
 bool opt_table_encryption_privilege_check = false;
 
+// SQL 审核的全局变量
+bool sql_check = false;
+bool sql_check_has_primary = true;
+bool sql_check_need_primary = true;
+bool sql_check_column_need_comment = true;
+bool sql_check_allow_keyword = false;
+bool sql_check_need_primary_number = true;
+bool sql_check_allow_unsigned = false;
+bool sql_check_insert_need_column = true;
+bool sql_check_allow_null = false;
+bool sql_check_allow_drop_table = true;
+int32 sql_check_max_columns_per_index = 6;
+bool sql_check_dml_need_where = true;
+bool sql_check_column_need_default_value = true;
+bool sql_check_allow_drop_database = true;
+int32 sql_check_max_indexs_per_table = 8;
+bool sql_check_dml_allow_order = true;
+int32 sql_check_char_max_length = 255;
+bool sql_check_dml_allow_select = true;
+int32 sql_check_table_name_length = 64;
+char* sql_check_need_columns_list;
+char* sql_check_allowed_keywords;
+
+
 const double log_10[] = {
     1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009, 1e010,
     1e011, 1e012, 1e013, 1e014, 1e015, 1e016, 1e017, 1e018, 1e019, 1e020, 1e021,
