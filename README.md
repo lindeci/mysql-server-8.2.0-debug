@@ -1,5 +1,19 @@
-# mysql-server-8.2.0-debug
-使用 MySQL 源码开发的 SQL 审核工具，100.000% 兼容 MySQL 语法。
+- [概述](#概述)
+- [1. 控制 SQL 审核的全局系统变量](#1-控制-sql-审核的全局系统变量)
+  - [1.1 默认的 SQL 审核系统变量](#11-默认的-sql-审核系统变量)
+  - [1.2 变量介绍](#12-变量介绍)
+- [2. 测试用例](#2-测试用例)
+  - [2.1 开启极端的 SQL 审核规则](#21-开启极端的-sql-审核规则)
+  - [2.2 建表字段测试用例](#22-建表字段测试用例)
+  - [2.3 建表索引测试](#22-建表索引测试)
+  - [2.4 DML 测试](#23-dml-测试)
+- [3. 所有的开发细节](#3-所有的开发细节)
+
+# 概述
+基于 MySQL 8.2.0 源码开发的 SQL 审核工具，100.000% 兼容 MySQL 语法。  
+在对 MySQL 语法兼容性方面，与市面上任何同款工具对比，`遥遥领先！`
+
+[该工具的 docker 安装方法](https://github.com/lindeci/mysql-server-8.2.0-docker) ： `https://github.com/lindeci/mysql-server-8.2.0-docker`
 
 # 1. 控制 SQL 审核的全局系统变量
 ## 1.1 默认的 SQL 审核系统变量
@@ -102,7 +116,7 @@ mysql> create table test(id int unsigned, c1 char(5), dt timestamp, `select` int
 +-------------+------------+-------------+-----------------------------------------------+-----------------+
 18 rows in set (0.00 sec)
 ```
-## 2.2 建表索引测试
+## 2.3 建表索引测试
 ```sql
 create table t (
     id varchar(5) primary key not null comment "id", 
@@ -121,7 +135,7 @@ create table t (
 2 rows in set (0.00 sec)
 
 ```
-## 2.3 DML 测试
+## 2.4 DML 测试
 ```sql
 mysql> delete from a order by c;           
 +-------------+------------+-------------+-----------------------+--------------------------+
@@ -150,3 +164,11 @@ mysql> insert into a select 1;
 +-------------+------------+-------------+------------------------+------------------------+
 2 rows in set (0.03 sec)
 ```
+
+# 3. 所有的开发细节
+基于 MySQL 8.2.0 源码开发。
+
+`在这里你可以了解到该审核工具对 MySQL 8.2.0 源码 的所有改动。`
+
+[该审核工具第一个工业级版本与 MySQL 8.2.0 源码的官方版本的代码对比](https://github.com/lindeci/mysql-server-8.2.0-debug/commit/d4847badb436863be38114c51b26fbaf2abb9eeb)：
+`https://github.com/lindeci/mysql-server-8.2.0-debug/commit/d4847badb436863be38114c51b26fbaf2abb9eeb`
